@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>歷屆田徑比賽成績系統</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        /* 極簡單色設計 */
+        /* 極簡單色設計 (Monochrome Theme) */
         :root {
             --bg-color: #f9f9f9;
             --container-bg: #ffffff;
@@ -47,7 +46,7 @@
             width: 100%;
         }
         
-        /* 控制面板 */
+        /* 控制面板 (下拉選單與按鈕) */
         .controls {
             display: flex;
             flex-wrap: wrap;
@@ -85,7 +84,9 @@
             transition: all 0.2s ease;
         }
 
-        select:focus, button:hover { border-color: var(--accent-color); }
+        select:focus, button:hover {
+            border-color: var(--accent-color);
+        }
 
         .action-buttons {
             display: flex;
@@ -98,38 +99,32 @@
 
         button.primary { background: var(--accent-color); color: white; border: none; }
         button.primary:hover { background: #333; }
-        button.success { background: #2e7d32; color: white; border: none; }
-        button.success:hover { background: #1b5e20; }
         
-        /* 隱藏預設檔案上傳按鈕 */
+        /* 隱藏預設檔案上傳按鈕，用自訂按鈕取代 */
         input[type="file"] { display: none; }
         .file-upload-label {
             padding: 10px 15px;
             background: var(--container-bg);
-            border: 1px solid #2e7d32;
-            color: #2e7d32;
-            font-weight: bold;
+            border: 1px solid var(--border-color);
             border-radius: 4px;
             cursor: pointer;
             text-align: center;
             font-size: 15px;
             transition: all 0.2s ease;
         }
-        .file-upload-label:hover { background: #e8f5e9; }
+        .file-upload-label:hover { background: var(--hover-bg); }
 
         /* 表格區塊 */
-        .event-section { margin-bottom: 40px; }
-        
         .event-header {
             display: flex;
             justify-content: space-between;
             align-items: baseline;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             border-left: 4px solid var(--accent-color);
             padding-left: 15px;
         }
 
-        .event-title { font-size: 20px; font-weight: bold; }
+        .event-title { font-size: 22px; font-weight: bold; }
         .event-record { font-size: 14px; color: var(--text-muted); }
 
         table { 
@@ -140,14 +135,51 @@
             overflow: hidden;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
-        th, td { border: 1px solid var(--border-color); padding: 10px 12px; text-align: left; }
-        th { background-color: var(--accent-color); color: white; font-weight: normal; }
+        th, td { 
+            border: 1px solid var(--border-color); 
+            padding: 12px; 
+            text-align: left; 
+        }
+        th { 
+            background-color: var(--accent-color); 
+            color: white; 
+            font-weight: normal;
+        }
         tr:nth-child(even) { background-color: var(--bg-color); }
         tr:hover { background-color: var(--hover-bg); }
         
         .new-record { font-weight: bold; text-decoration: underline; }
         .rank-col { width: 60px; text-align: center; font-weight: bold; }
+        .action-col { width: 100px; text-align: center; }
         .empty-state { text-align: center; padding: 40px; color: var(--text-muted); font-style: italic; border: 1px dashed var(--border-color); }
+
+        /* 編輯模式專用樣式 */
+        .small-btn {
+            padding: 5px 10px;
+            font-size: 13px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            background: var(--container-bg);
+            margin: 2px;
+            transition: all 0.2s;
+        }
+        .small-btn:hover { background: var(--hover-bg); border-color: var(--text-muted); }
+        .small-btn.save { background: var(--accent-color); color: white; border: none; }
+        .small-btn.save:hover { background: #333; }
+        
+        input[type="text"].edit-input {
+            width: 90%;
+            padding: 6px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        input[type="text"].edit-input:focus {
+            border-color: var(--accent-color);
+            outline: none;
+        }
     </style>
 </head>
 <body>
@@ -170,14 +202,14 @@
         </div>
         
         <div class="action-buttons">
-            <button class="success" onclick="exportExcel()">匯出成績 (Excel)</button>
-            <label class="file-upload-label" for="import-file">匯入更新 (Excel)</label>
-            <input type="file" id="import-file" accept=".xlsx, .xls" onchange="importExcel(event)">
+            <button class="primary" onclick="exportData()">匯出成績 (JSON)</button>
+            <label class="file-upload-label" for="import-file">匯入成績 (JSON)</label>
+            <input type="file" id="import-file" accept=".json" onchange="importData(event)">
         </div>
     </div>
 
     <div id="table-container">
-        <div class="empty-state">系統載入中...</div>
+        <div class="empty-state">請由上方選單選擇比賽、組別與項目以顯示成績。</div>
     </div>
 </div>
 
@@ -1248,10 +1280,11 @@
 </script>
 
 <script>
-    // 全局資料庫
+    // 全局資料庫與編輯狀態
     let appData = [];
+    let currentlyEditingIndex = -1;
 
-    // 1. 初始化：解析原始數據 (這裡沿用原本的邏輯)
+    // 初始化：解析原始數據
     function parseRawData(rawData) {
         let parsedTabs = [];
         let currentTab = -1;
@@ -1261,27 +1294,26 @@
         const lines = rawData.split('\n').map(l => l.trim()).filter(l => l !== '');
         
         lines.forEach(line => {
-            if (line.includes("2025-2026") || line.includes("保良局") || line.includes("校際")) {
+            if (line.includes("2025-2026 年度沙田區小學校際") || line.includes("保良局屬下小學第二十屆") || line.includes("保良局屬下沙田區小學")) {
                 let shortName = line;
                 if(line.includes("沙田區小學校際")) shortName = "沙田區小學校際";
-                else if(line.includes("聯合運動會")) shortName = "保良局小學聯運會";
+                else if(line.includes("第二十屆聯合運動會")) shortName = "保良局小學聯運會";
+                else if(line.includes("沙田區小學聯合運動會")) shortName = "保良局沙田區聯運會";
                 
                 parsedTabs.push({ title: line, shortTitle: shortName, groups: [] });
-                currentTab++; currentGroup = -1;
+                currentTab++;
+                currentGroup = -1;
             } else if (line.includes("組")) {
-                if (currentTab >= 0) {
-                    parsedTabs[currentTab].groups.push({ title: line, events: [] });
-                    currentGroup++; currentEvent = -1;
-                }
+                parsedTabs[currentTab].groups.push({ title: line, events: [] });
+                currentGroup++;
+                currentEvent = -1;
             } else if (/^\d+米|跳高|跳遠|擲壘球|推鉛球|壘球|鉛球|4 x 100/.test(line)) {
                 let parts = line.split('(');
                 let eventTitle = parts[0].trim();
                 let record = parts[1] ? `(${parts[1]}` : '';
-                if (currentTab >= 0 && currentGroup >= 0) {
-                    parsedTabs[currentTab].groups[currentGroup].events.push({ title: eventTitle, record: record, results: [] });
-                    currentEvent++;
-                }
-            } else if (/^\d+\./.test(line) && currentEvent >= 0) {
+                parsedTabs[currentTab].groups[currentGroup].events.push({ title: eventTitle, record: record, results: [] });
+                currentEvent++;
+            } else if (/^\d+\./.test(line)) {
                 let rank, name, score;
                 let dashIndex = line.lastIndexOf(' - ');
                 if (dashIndex !== -1) {
@@ -1308,21 +1340,24 @@
         renderCompDropdown();
     };
 
-    // 選單 1：選擇比賽
+    // 渲染「選擇比賽」選單
     function renderCompDropdown() {
+        currentlyEditingIndex = -1; // 重置編輯狀態
         const compSelect = document.getElementById('comp-select');
         compSelect.innerHTML = '<option value="" disabled selected>-- 請選擇比賽 --</option>';
         appData.forEach((comp, idx) => {
             compSelect.innerHTML += `<option value="${idx}">${comp.shortTitle}</option>`;
         });
         
+        // 重設下方選單
         document.getElementById('group-select').innerHTML = '<option value="" disabled selected>-- 等待選擇比賽 --</option>';
         document.getElementById('event-select').innerHTML = '<option value="" disabled selected>-- 等待選擇組別 --</option>';
-        document.getElementById('table-container').innerHTML = '<div class="empty-state">請由上方選單選擇以顯示成績。</div>';
+        document.getElementById('table-container').innerHTML = '<div class="empty-state">請由上方選單選擇比賽、組別與項目以顯示成績。</div>';
     }
 
-    // 選單 2：選擇組別
+    // 更新「選擇組別」選單
     function updateGroups() {
+        currentlyEditingIndex = -1; // 重置編輯狀態
         const compIdx = document.getElementById('comp-select').value;
         const groupSelect = document.getElementById('group-select');
         
@@ -1333,202 +1368,156 @@
             });
         }
         document.getElementById('event-select').innerHTML = '<option value="" disabled selected>-- 等待選擇組別 --</option>';
-        document.getElementById('table-container').innerHTML = '<div class="empty-state">請選擇組別。</div>';
+        document.getElementById('table-container').innerHTML = '<div class="empty-state">請繼續選擇組別與項目。</div>';
     }
 
-    // 選單 3：選擇項目 (預設為「全部」)
+    // 更新「選擇項目」選單
     function updateEvents() {
+        currentlyEditingIndex = -1; // 重置編輯狀態
         const compIdx = document.getElementById('comp-select').value;
         const groupIdx = document.getElementById('group-select').value;
         const eventSelect = document.getElementById('event-select');
         
-        // 加入預設的「全部」選項
-        eventSelect.innerHTML = '<option value="all" selected>全部項目</option>';
-        
+        eventSelect.innerHTML = '<option value="" disabled selected>-- 請選擇項目 --</option>';
         if (compIdx !== "" && groupIdx !== "") {
             appData[compIdx].groups[groupIdx].events.forEach((ev, idx) => {
                 eventSelect.innerHTML += `<option value="${idx}">${ev.title}</option>`;
             });
-            // 自動渲染全部項目
-            renderTable();
         }
+        document.getElementById('table-container').innerHTML = '<div class="empty-state">請最後選擇比賽項目。</div>';
     }
 
-    // 渲染表格內容 (支援渲染單一或全部項目)
+    // 顯示對應的成績表格
     function renderTable() {
         const compIdx = document.getElementById('comp-select').value;
         const groupIdx = document.getElementById('group-select').value;
         const eventIdx = document.getElementById('event-select').value;
         
-        if (compIdx === "" || groupIdx === "") return;
+        if (compIdx === "" || groupIdx === "" || eventIdx === "") return;
 
-        let targetEvents = [];
-        // 判斷是選擇「全部」還是「特定項目」
-        if (eventIdx === "all") {
-            targetEvents = appData[compIdx].groups[groupIdx].events;
-        } else {
-            targetEvents = [appData[compIdx].groups[groupIdx].events[eventIdx]];
-        }
+        const ev = appData[compIdx].groups[groupIdx].events[eventIdx];
         
-        let container = document.getElementById('table-container');
-        if (targetEvents.length === 0) {
-            container.innerHTML = '<div class="empty-state">此組別暫無項目數據。</div>';
-            return;
-        }
+        let html = `
+            <div class="event-header">
+                <div class="event-title">${ev.title}</div>
+                <div class="event-record">${ev.record}</div>
+            </div>
+            <table>
+                <tr>
+                    <th class="rank-col">名次</th>
+                    <th>姓名 (學校)</th>
+                    <th>成績</th>
+                    <th class="action-col">操作</th>
+                </tr>
+        `;
 
-        let finalHtml = "";
-        targetEvents.forEach(ev => {
-            let html = `
-                <div class="event-section">
-                    <div class="event-header">
-                        <div class="event-title">${ev.title}</div>
-                        <div class="event-record">${ev.record}</div>
-                    </div>
-                    <table>
-                        <tr>
-                            <th class="rank-col">名次</th>
-                            <th>姓名 (學校)</th>
-                            <th>成績</th>
-                        </tr>
-            `;
-
-            if(ev.results.length === 0) {
-                html += `<tr><td colspan="3" style="text-align:center; color:#999;">暫無成績</td></tr>`;
+        ev.results.forEach((res, idx) => {
+            if (currentlyEditingIndex === idx) {
+                // 編輯模式
+                html += `<tr>
+                    <td class="rank-col"><input type="text" class="edit-input" id="edit-rank" value="${res.rank}" style="text-align: center;"></td>
+                    <td><input type="text" class="edit-input" id="edit-name" value="${res.name}"></td>
+                    <td><input type="text" class="edit-input" id="edit-score" value="${res.score}"></td>
+                    <td class="action-col">
+                        <button class="small-btn save" onclick="saveRow(${idx})">儲存</button>
+                        <button class="small-btn" onclick="cancelEdit()">取消</button>
+                    </td>
+                </tr>`;
             } else {
-                ev.results.forEach(res => {
-                    let scoreClass = res.score.includes('*') ? 'class="new-record"' : '';
-                    html += `<tr>
-                        <td class="rank-col">${res.rank}</td>
-                        <td>${res.name}</td>
-                        <td ${scoreClass}>${res.score}</td>
-                    </tr>`;
-                });
+                // 一般顯示模式
+                let scoreClass = res.score.includes('*') ? 'class="new-record"' : '';
+                html += `<tr>
+                    <td class="rank-col">${res.rank}</td>
+                    <td>${res.name}</td>
+                    <td ${scoreClass}>${res.score}</td>
+                    <td class="action-col">
+                        <button class="small-btn" onclick="editRow(${idx})">✎ 編輯</button>
+                    </td>
+                </tr>`;
             }
-            html += `</table></div>`;
-            finalHtml += html;
         });
 
-        container.innerHTML = finalHtml;
+        html += `</table>`;
+        document.getElementById('table-container').innerHTML = html;
     }
 
-    // ===== 匯出 Excel 功能 =====
-    function exportExcel() {
+    // 觸發編輯模式
+    function editRow(idx) {
+        currentlyEditingIndex = idx;
+        renderTable();
+    }
+
+    // 取消編輯
+    function cancelEdit() {
+        currentlyEditingIndex = -1;
+        renderTable();
+    }
+
+    // 儲存編輯內容
+    function saveRow(idx) {
+        const compIdx = document.getElementById('comp-select').value;
+        const groupIdx = document.getElementById('group-select').value;
+        const eventIdx = document.getElementById('event-select').value;
+        
+        const newRank = document.getElementById('edit-rank').value.trim();
+        const newName = document.getElementById('edit-name').value.trim();
+        const newScore = document.getElementById('edit-score').value.trim();
+
+        if (compIdx !== "" && groupIdx !== "" && eventIdx !== "") {
+            // 更新全局資料庫
+            appData[compIdx].groups[groupIdx].events[eventIdx].results[idx] = {
+                rank: newRank,
+                name: newName,
+                score: newScore
+            };
+        }
+        
+        currentlyEditingIndex = -1;
+        renderTable();
+    }
+
+    // 匯出 JSON 功能
+    function exportData() {
         if (appData.length === 0) {
             alert("目前沒有數據可供匯出！");
             return;
         }
-
-        // 將樹狀資料打平為 2D 陣列 (適用於 Excel)
-        let excelData = [];
-        // 標題列
-        excelData.push(["比賽名稱", "組別", "項目", "大會紀錄", "名次", "姓名(學校)", "成績"]);
-
-        appData.forEach(comp => {
-            comp.groups.forEach(group => {
-                group.events.forEach(ev => {
-                    if (ev.results.length === 0) {
-                        // 即使沒成績也把項目匯出
-                        excelData.push([comp.title, group.title, ev.title, ev.record, "", "", ""]);
-                    } else {
-                        ev.results.forEach(res => {
-                            excelData.push([comp.title, group.title, ev.title, ev.record, res.rank, res.name, res.score]);
-                        });
-                    }
-                });
-            });
-        });
-
-        // 呼叫 SheetJS 將陣列轉為工作表並下載
-        const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "田徑成績");
+        const dataStr = JSON.stringify(appData, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
         
-        // 匯出檔案
-        XLSX.writeFile(workbook, "歷屆田徑比賽成績庫.xlsx");
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "歷屆田徑成績備份.json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
-    // ===== 匯入 Excel 功能 =====
-    function importExcel(event) {
+    // 匯入 JSON 功能
+    function importData(event) {
         const file = event.target.files[0];
         if (!file) return;
 
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                
-                // 讀取第一個工作表
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                
-                // 將工作表轉回 2D 陣列
-                const rawExcelArray = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-                let newAppData = [];
-
-                // 略過第 0 列 (標題列)，從第 1 列開始解析
-                for (let i = 1; i < rawExcelArray.length; i++) {
-                    let row = rawExcelArray[i];
-                    if (!row || row.length === 0) continue;
-
-                    let compTitle = row[0] ? row[0].toString().trim() : "";
-                    let groupTitle = row[1] ? row[1].toString().trim() : "";
-                    let eventTitle = row[2] ? row[2].toString().trim() : "";
-                    let record = row[3] ? row[3].toString().trim() : "";
-                    let rank = row[4] ? row[4].toString().trim() : "";
-                    let name = row[5] ? row[5].toString().trim() : "";
-                    let score = row[6] ? row[6].toString().trim() : "";
-
-                    if (!compTitle || !groupTitle || !eventTitle) continue;
-
-                    // 1. 找尋或建立比賽
-                    let comp = newAppData.find(c => c.title === compTitle);
-                    if (!comp) {
-                        let shortName = compTitle;
-                        if(compTitle.includes("沙田區小學校際")) shortName = "沙田區小學校際";
-                        else if(compTitle.includes("聯合運動會")) shortName = "保良局聯運會";
-                        comp = { title: compTitle, shortTitle: shortName, groups: [] };
-                        newAppData.push(comp);
-                    }
-
-                    // 2. 找尋或建立組別
-                    let group = comp.groups.find(g => g.title === groupTitle);
-                    if (!group) {
-                        group = { title: groupTitle, events: [] };
-                        comp.groups.push(group);
-                    }
-
-                    // 3. 找尋或建立項目
-                    let ev = group.events.find(e => e.title === eventTitle);
-                    if (!ev) {
-                        ev = { title: eventTitle, record: record, results: [] };
-                        group.events.push(ev);
-                    }
-
-                    // 4. 新增成績 (如果有資料)
-                    if (rank !== "" || name !== "" || score !== "") {
-                        ev.results.push({ rank, name, score });
-                    }
-                }
-
-                if (newAppData.length > 0) {
-                    appData = newAppData;
+                const importedData = JSON.parse(e.target.result);
+                if (Array.isArray(importedData)) {
+                    appData = importedData;
                     renderCompDropdown();
-                    alert("✅ 成功匯入並更新成績數據！");
+                    alert("✅ 成功匯入成績數據！");
                 } else {
-                    alert("❌ 匯入失敗：未能從 Excel 讀取到有效格式。");
+                    alert("❌ 檔案格式不正確。請確保匯入的是本系統匯出的 JSON 檔案。");
                 }
-
             } catch (error) {
-                console.error(error);
-                alert("❌ 解析 Excel 檔案失敗，請確保檔案格式正確。");
+                alert("❌ 解析檔案失敗，請確定這是一個有效的 JSON 檔案。");
             }
         };
-        // 讀取為 ArrayBuffer (SheetJS 所需格式)
-        reader.readAsArrayBuffer(file);
+        reader.readAsText(file);
         
-        // 清空 input 值，允許重複上傳同一個檔案
+        // 清空 input，允許重複匯入同一個檔案
         event.target.value = '';
     }
 </script>
