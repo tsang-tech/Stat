@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>歷屆田徑比賽成績系統</title>
+    <title>歷屆田徑比賽成績系統 (Excel 整合版)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         /* 極簡單色設計 (Monochrome Theme) */
         :root {
@@ -26,7 +27,7 @@
         }
 
         .container { 
-            max-width: 900px; 
+            max-width: 1000px; 
             margin: auto; 
             background: var(--container-bg); 
             padding: 30px; 
@@ -46,7 +47,7 @@
             width: 100%;
         }
         
-        /* 控制面板 (下拉選單與按鈕) */
+        /* 控制面板 */
         .controls {
             display: flex;
             flex-wrap: wrap;
@@ -97,22 +98,23 @@
             padding-top: 15px;
         }
 
-        button.primary { background: var(--accent-color); color: white; border: none; }
-        button.primary:hover { background: #333; }
+        /* Excel 專用按鈕顏色 */
+        .btn-excel { background-color: #27ae60; color: white; border: none; }
+        .btn-excel:hover { background-color: #219653; }
         
-        /* 隱藏預設檔案上傳按鈕，用自訂按鈕取代 */
         input[type="file"] { display: none; }
         .file-upload-label {
             padding: 10px 15px;
-            background: var(--container-bg);
-            border: 1px solid var(--border-color);
+            background: #27ae60;
+            color: white;
+            border: none;
             border-radius: 4px;
             cursor: pointer;
             text-align: center;
             font-size: 15px;
             transition: all 0.2s ease;
         }
-        .file-upload-label:hover { background: var(--hover-bg); }
+        .file-upload-label:hover { background: #219653; }
 
         /* 表格區塊 */
         .event-header {
@@ -134,11 +136,13 @@
             border-radius: 4px;
             overflow: hidden;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            table-layout: fixed; /* 啟用自訂欄寬 */
         }
         th, td { 
             border: 1px solid var(--border-color); 
-            padding: 12px; 
+            padding: 10px; 
             text-align: left; 
+            word-wrap: break-word;
         }
         th { 
             background-color: var(--accent-color); 
@@ -148,9 +152,14 @@
         tr:nth-child(even) { background-color: var(--bg-color); }
         tr:hover { background-color: var(--hover-bg); }
         
-        .new-record { font-weight: bold; text-decoration: underline; }
-        .rank-col { width: 60px; text-align: center; font-weight: bold; }
-        .action-col { width: 100px; text-align: center; }
+        /* 自訂欄位寬度 (符合 V2.0 要求) */
+        .col-rank { width: 10%; text-align: center; font-weight: bold; } /* 收窄 */
+        .col-name { width: 20%; } 
+        .col-school { width: 35%; } /* 加闊 */
+        .col-score { width: 20%; }
+        .col-action { width: 15%; text-align: center; } /* 收窄 */
+
+        .new-record { font-weight: bold; text-decoration: underline; color: #d35400; }
         .empty-state { text-align: center; padding: 40px; color: var(--text-muted); font-style: italic; border: 1px dashed var(--border-color); }
 
         /* 編輯模式專用樣式 */
@@ -185,7 +194,7 @@
 <body>
 
 <div class="container">
-    <h1>歷屆田徑比賽成績查詢系統</h1>
+    <h1>🏆 歷屆田徑比賽成績系統</h1>
     
     <div class="controls">
         <div class="control-group">
@@ -202,9 +211,9 @@
         </div>
         
         <div class="action-buttons">
-            <button class="primary" onclick="exportData()">匯出成績 (JSON)</button>
-            <label class="file-upload-label" for="import-file">匯入成績 (JSON)</label>
-            <input type="file" id="import-file" accept=".json" onchange="importData(event)">
+            <button class="btn-excel" onclick="exportExcel()">⬇️ 匯出成績 (Excel)</button>
+            <label class="file-upload-label" for="import-file">⬆️ 匯入成績 (Excel)</label>
+            <input type="file" id="import-file" accept=".xlsx, .xls" onchange="importExcel(event)">
         </div>
     </div>
 
@@ -1280,11 +1289,10 @@
 </script>
 
 <script>
-    // 全局資料庫與編輯狀態
     let appData = [];
     let currentlyEditingIndex = -1;
 
-    // 初始化：解析原始數據
+    // 智能解析原始數據並將「姓名」與「學校」分離
     function parseRawData(rawData) {
         let parsedTabs = [];
         let currentTab = -1;
@@ -1314,20 +1322,36 @@
                 parsedTabs[currentTab].groups[currentGroup].events.push({ title: eventTitle, record: record, results: [] });
                 currentEvent++;
             } else if (/^\d+\./.test(line)) {
-                let rank, name, score;
+                let rank, rawName, score, namePart, schoolPart = "";
                 let dashIndex = line.lastIndexOf(' - ');
+                
                 if (dashIndex !== -1) {
                     let dotIndex = line.indexOf('.');
                     rank = line.substring(0, dotIndex).trim();
-                    name = line.substring(dotIndex + 1, dashIndex).trim();
+                    rawName = line.substring(dotIndex + 1, dashIndex).trim();
                     score = line.substring(dashIndex + 3).trim();
                 } else {
                     let dotIndex = line.indexOf('.');
                     rank = line.substring(0, dotIndex).trim();
-                    name = line.substring(dotIndex + 1).trim();
+                    rawName = line.substring(dotIndex + 1).trim();
                     score = "-";
                 }
-                parsedTabs[currentTab].groups[currentGroup].events[currentEvent].results.push({rank, name, score});
+                
+                // 分離姓名與學校 (例: "楊鴻軒 (蕭漢森)" -> 姓名: 楊鴻軒, 學校: 蕭漢森)
+                namePart = rawName;
+                if (rawName.includes('(') && rawName.includes(')')) {
+                    let openP = rawName.lastIndexOf('(');
+                    let closeP = rawName.lastIndexOf(')');
+                    namePart = rawName.substring(0, openP).trim();
+                    schoolPart = rawName.substring(openP + 1, closeP).trim();
+                }
+
+                parsedTabs[currentTab].groups[currentGroup].events[currentEvent].results.push({
+                    rank: rank, 
+                    name: namePart, 
+                    school: schoolPart,
+                    score: score
+                });
             }
         });
         return parsedTabs;
@@ -1340,54 +1364,58 @@
         renderCompDropdown();
     };
 
-    // 渲染「選擇比賽」選單
     function renderCompDropdown() {
-        currentlyEditingIndex = -1; // 重置編輯狀態
+        currentlyEditingIndex = -1;
         const compSelect = document.getElementById('comp-select');
-        compSelect.innerHTML = '<option value="" disabled selected>-- 請選擇比賽 --</option>';
+        compSelect.innerHTML = '<option value="" disabled>-- 請選擇比賽 --</option>';
         appData.forEach((comp, idx) => {
             compSelect.innerHTML += `<option value="${idx}">${comp.shortTitle}</option>`;
         });
         
-        // 重設下方選單
-        document.getElementById('group-select').innerHTML = '<option value="" disabled selected>-- 等待選擇比賽 --</option>';
-        document.getElementById('event-select').innerHTML = '<option value="" disabled selected>-- 等待選擇組別 --</option>';
-        document.getElementById('table-container').innerHTML = '<div class="empty-state">請由上方選單選擇比賽、組別與項目以顯示成績。</div>';
+        // 預設選中第一個比賽
+        if(appData.length > 0) {
+            compSelect.value = "0";
+            updateGroups();
+        }
     }
 
-    // 更新「選擇組別」選單
     function updateGroups() {
-        currentlyEditingIndex = -1; // 重置編輯狀態
+        currentlyEditingIndex = -1;
         const compIdx = document.getElementById('comp-select').value;
         const groupSelect = document.getElementById('group-select');
         
-        groupSelect.innerHTML = '<option value="" disabled selected>-- 請選擇組別 --</option>';
+        groupSelect.innerHTML = '<option value="" disabled>-- 請選擇組別 --</option>';
         if (compIdx !== "") {
             appData[compIdx].groups.forEach((group, idx) => {
                 groupSelect.innerHTML += `<option value="${idx}">${group.title}</option>`;
             });
+            // 預設選中第一個組別
+            if(appData[compIdx].groups.length > 0) {
+                groupSelect.value = "0";
+                updateEvents();
+            }
         }
-        document.getElementById('event-select').innerHTML = '<option value="" disabled selected>-- 等待選擇組別 --</option>';
-        document.getElementById('table-container').innerHTML = '<div class="empty-state">請繼續選擇組別與項目。</div>';
     }
 
-    // 更新「選擇項目」選單
     function updateEvents() {
-        currentlyEditingIndex = -1; // 重置編輯狀態
+        currentlyEditingIndex = -1;
         const compIdx = document.getElementById('comp-select').value;
         const groupIdx = document.getElementById('group-select').value;
         const eventSelect = document.getElementById('event-select');
         
-        eventSelect.innerHTML = '<option value="" disabled selected>-- 請選擇項目 --</option>';
+        eventSelect.innerHTML = '<option value="" disabled>-- 請選擇項目 --</option>';
         if (compIdx !== "" && groupIdx !== "") {
             appData[compIdx].groups[groupIdx].events.forEach((ev, idx) => {
                 eventSelect.innerHTML += `<option value="${idx}">${ev.title}</option>`;
             });
+            // 預設選中第一個項目並渲染表格
+            if(appData[compIdx].groups[groupIdx].events.length > 0) {
+                eventSelect.value = "0";
+                renderTable();
+            }
         }
-        document.getElementById('table-container').innerHTML = '<div class="empty-state">請最後選擇比賽項目。</div>';
     }
 
-    // 顯示對應的成績表格
     function renderTable() {
         const compIdx = document.getElementById('comp-select').value;
         const groupIdx = document.getElementById('group-select').value;
@@ -1397,6 +1425,7 @@
 
         const ev = appData[compIdx].groups[groupIdx].events[eventIdx];
         
+        // 更新了表頭設計，套用全新的自訂寬度 css classes
         let html = `
             <div class="event-header">
                 <div class="event-title">${ev.title}</div>
@@ -1404,10 +1433,11 @@
             </div>
             <table>
                 <tr>
-                    <th class="rank-col">名次</th>
-                    <th>姓名 (學校)</th>
-                    <th>成績</th>
-                    <th class="action-col">操作</th>
+                    <th class="col-rank">名次</th>
+                    <th class="col-name">姓名</th>
+                    <th class="col-school">學校</th>
+                    <th class="col-score">成績</th>
+                    <th class="col-action">操作</th>
                 </tr>
         `;
 
@@ -1415,10 +1445,11 @@
             if (currentlyEditingIndex === idx) {
                 // 編輯模式
                 html += `<tr>
-                    <td class="rank-col"><input type="text" class="edit-input" id="edit-rank" value="${res.rank}" style="text-align: center;"></td>
+                    <td class="col-rank"><input type="text" class="edit-input" id="edit-rank" value="${res.rank}" style="text-align: center;"></td>
                     <td><input type="text" class="edit-input" id="edit-name" value="${res.name}"></td>
+                    <td><input type="text" class="edit-input" id="edit-school" value="${res.school}"></td>
                     <td><input type="text" class="edit-input" id="edit-score" value="${res.score}"></td>
-                    <td class="action-col">
+                    <td class="col-action">
                         <button class="small-btn save" onclick="saveRow(${idx})">儲存</button>
                         <button class="small-btn" onclick="cancelEdit()">取消</button>
                     </td>
@@ -1427,10 +1458,11 @@
                 // 一般顯示模式
                 let scoreClass = res.score.includes('*') ? 'class="new-record"' : '';
                 html += `<tr>
-                    <td class="rank-col">${res.rank}</td>
+                    <td class="col-rank">${res.rank}</td>
                     <td>${res.name}</td>
+                    <td>${res.school}</td>
                     <td ${scoreClass}>${res.score}</td>
-                    <td class="action-col">
+                    <td class="col-action">
                         <button class="small-btn" onclick="editRow(${idx})">✎ 編輯</button>
                     </td>
                 </tr>`;
@@ -1441,34 +1473,27 @@
         document.getElementById('table-container').innerHTML = html;
     }
 
-    // 觸發編輯模式
     function editRow(idx) {
         currentlyEditingIndex = idx;
         renderTable();
     }
 
-    // 取消編輯
     function cancelEdit() {
         currentlyEditingIndex = -1;
         renderTable();
     }
 
-    // 儲存編輯內容
     function saveRow(idx) {
         const compIdx = document.getElementById('comp-select').value;
         const groupIdx = document.getElementById('group-select').value;
         const eventIdx = document.getElementById('event-select').value;
         
-        const newRank = document.getElementById('edit-rank').value.trim();
-        const newName = document.getElementById('edit-name').value.trim();
-        const newScore = document.getElementById('edit-score').value.trim();
-
         if (compIdx !== "" && groupIdx !== "" && eventIdx !== "") {
-            // 更新全局資料庫
             appData[compIdx].groups[groupIdx].events[eventIdx].results[idx] = {
-                rank: newRank,
-                name: newName,
-                score: newScore
+                rank: document.getElementById('edit-rank').value.trim(),
+                name: document.getElementById('edit-name').value.trim(),
+                school: document.getElementById('edit-school').value.trim(),
+                score: document.getElementById('edit-score').value.trim()
             };
         }
         
@@ -1476,49 +1501,107 @@
         renderTable();
     }
 
-    // 匯出 JSON 功能
-    function exportData() {
+    // --- 全新 Excel 匯出與匯入功能 ---
+
+    function exportExcel() {
         if (appData.length === 0) {
             alert("目前沒有數據可供匯出！");
             return;
         }
-        const dataStr = JSON.stringify(appData, null, 2);
-        const blob = new Blob([dataStr], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
+
+        // 將巢狀資料攤平成適合 Excel 的二維陣列
+        let flatData = [];
+        appData.forEach(comp => {
+            comp.groups.forEach(group => {
+                group.events.forEach(ev => {
+                    ev.results.forEach(res => {
+                        flatData.push({
+                            "比賽名稱": comp.title,
+                            "比賽簡稱": comp.shortTitle,
+                            "組別": group.title,
+                            "項目": ev.title,
+                            "大會紀錄": ev.record,
+                            "名次": res.rank,
+                            "姓名": res.name,
+                            "學校": res.school,
+                            "成績": res.score
+                        });
+                    });
+                });
+            });
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(flatData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "歷屆田徑成績");
         
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = "歷屆田徑成績備份.json";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        XLSX.writeFile(workbook, "歷屆田徑成績備份.xlsx");
     }
 
-    // 匯入 JSON 功能
-    function importData(event) {
+    function importExcel(event) {
         const file = event.target.files[0];
         if (!file) return;
 
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
-                const importedData = JSON.parse(e.target.result);
-                if (Array.isArray(importedData)) {
-                    appData = importedData;
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const flatData = XLSX.utils.sheet_to_json(worksheet);
+
+                // 將 Excel 攤平的資料重新建構成巢狀結構
+                let newAppData = [];
+                let compMap = new Map();
+
+                flatData.forEach(row => {
+                    let compTitle = row["比賽名稱"] || "未知比賽";
+                    let shortTitle = row["比賽簡稱"] || compTitle;
+                    let groupTitle = row["組別"] || "未知組別";
+                    let eventTitle = row["項目"] || "未知項目";
+                    let record = row["大會紀錄"] || "";
+                    
+                    if (!compMap.has(compTitle)) {
+                        let compObj = { title: compTitle, shortTitle: shortTitle, groups: [] };
+                        newAppData.push(compObj);
+                        compMap.set(compTitle, compObj);
+                    }
+                    let compObj = compMap.get(compTitle);
+
+                    let groupObj = compObj.groups.find(g => g.title === groupTitle);
+                    if (!groupObj) {
+                        groupObj = { title: groupTitle, events: [] };
+                        compObj.groups.push(groupObj);
+                    }
+
+                    let eventObj = groupObj.events.find(ev => ev.title === eventTitle);
+                    if (!eventObj) {
+                        eventObj = { title: eventTitle, record: record, results: [] };
+                        groupObj.events.push(eventObj);
+                    }
+
+                    eventObj.results.push({ 
+                        rank: row["名次"] || "", 
+                        name: row["姓名"] || "", 
+                        school: row["學校"] || "",
+                        score: row["成績"] || ""
+                    });
+                });
+
+                if (newAppData.length > 0) {
+                    appData = newAppData;
                     renderCompDropdown();
-                    alert("✅ 成功匯入成績數據！");
+                    alert("✅ 成功從 Excel 匯入成績數據！");
                 } else {
-                    alert("❌ 檔案格式不正確。請確保匯入的是本系統匯出的 JSON 檔案。");
+                    alert("⚠️ 匯入的 Excel 似乎沒有有效數據。");
                 }
             } catch (error) {
-                alert("❌ 解析檔案失敗，請確定這是一個有效的 JSON 檔案。");
+                alert("❌ 解析 Excel 檔案失敗，請確保格式正確。");
+                console.error(error);
             }
         };
-        reader.readAsText(file);
-        
-        // 清空 input，允許重複匯入同一個檔案
-        event.target.value = '';
+        reader.readAsArrayBuffer(file);
+        event.target.value = ''; // 允許重複匯入
     }
 </script>
 
