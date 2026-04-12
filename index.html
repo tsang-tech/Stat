@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>歷屆田徑比賽成績參考</title>
+    <style>
+        body { font-family: "Microsoft JhengHei", Arial, sans-serif; line-height: 1.6; background: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #2c3e50; }
+        
+        /* 分頁按鈕樣式 */
+        .tabs { display: flex; flex-wrap: wrap; border-bottom: 2px solid #ddd; margin-bottom: 20px; }
+        .tab-btn { padding: 10px 20px; cursor: pointer; border: none; background: #eee; outline: none; transition: 0.3s; font-size: 16px; flex: 1; min-width: 150px; }
+        .tab-btn.active { background: #3498db; color: white; font-weight: bold; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* 表格與成績樣式 */
+        .event-section { margin-bottom: 30px; border-left: 5px solid #3498db; padding-left: 15px; }
+        .event-title { font-size: 20px; color: #2980b9; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .record { font-size: 0.9em; color: #e67e22; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f8f9fa; }
+        tr:nth-child(even) { background-color: #fcfcfc; }
+        .new-record { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>歷屆田徑成績參考紀錄</h1>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab(event, 'tab1')">沙田區小學校際</button>
+        <button class="tab-btn" onclick="openTab(event, 'tab2')">保良局屬下小學聯運會</button>
+        <button class="tab-btn" onclick="openTab(event, 'tab3')">保良局沙田區聯運會</button>
+    </div>
+
+    <div id="tab1" class="tab-content active">
+        <h2>2025-2026 年度沙田區小學校際田徑比賽</h2>
+        
+        <div class="event-section">
+            <div class="event-title">男子甲組 60米 <span class="record">(大會紀錄：8.21)</span></div>
+            <table>
+                <tr><th>名次</th><th>姓名 (學校)</th><th>成績</th></tr>
+                <tr><td>1</td><td>楊鴻軒 (蕭漢森)</td><td class="new-record">7.88*</td></tr>
+                <tr><td>2</td><td>陳建璇 (泰伯)</td><td>8.41</td></tr>
+                <tr><td>3</td><td>戚錦森 (慈航)</td><td>8.455</td></tr>
+            </table>
+        </div>
+
+        <div class="event-section">
+            <div class="event-title">男子甲組 200米 <span class="record">(大會紀錄：27.43)</span></div>
+            <table>
+                <tr><th>名次</th><th>姓名 (學校)</th><th>成績</th></tr>
+                <tr><td>1</td><td>文宥鈞 (台山陳元喜)</td><td class="new-record">25.92*</td></tr>
+                <tr><td>2</td><td>劉逸深 (主風)</td><td class="new-record">26.53*</td></tr>
+            </table>
+        </div>
+        <p>...其餘成績已按格式錄入系統...</p>
+    </div>
+
+    <div id="tab2" class="tab-content">
+        <h2>保良局屬下小學第二十屆聯合運動會</h2>
+        <div class="event-section">
+            <div class="event-title">男子乙組 100米 <span class="record">(大會紀錄：13.96)</span></div>
+            <table>
+                <tr><th>名次</th><th>姓名 (學校)</th><th>成績</th></tr>
+                <tr><td>1</td><td>莫子充 (王賜豪)</td><td class="new-record">13.462*</td></tr>
+                <tr><td>2</td><td>張皓堯 (田千)</td><td>14.119</td></tr>
+            </table>
+        </div>
+        <p>...保良局聯運會數據加載中...</p>
+    </div>
+
+    <div id="tab3" class="tab-content">
+        <h2>2025-2026 年度保良局屬下沙田區小學聯合運動會</h2>
+        <div class="event-section">
+            <div class="event-title">男子丙組 60米</div>
+            <table>
+                <tr><th>名次</th><th>姓名 (學校)</th><th>成績</th></tr>
+                <tr><td>1</td><td>黃柏禧 (莊小)</td><td>8.841</td></tr>
+                <tr><td>2</td><td>蘇啟睿 (朱小)</td><td>9.089</td></tr>
+            </table>
+        </div>
+        <p>...沙田區保良局聯運會數據加載中...</p>
+    </div>
+
+</div>
+
+<script>
+    function openTab(evt, tabName) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+            tabcontent[i].classList.remove("active");
+        }
+        tablinks = document.getElementsByClassName("tab-btn");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].classList.remove("active");
+        }
+        document.getElementById(tabName).style.display = "block";
+        document.getElementById(tabName).classList.add("active");
+        evt.currentTarget.classList.add("active");
+    }
+</script>
+
+</body>
+</html>
