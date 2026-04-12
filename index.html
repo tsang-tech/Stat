@@ -3,43 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>歷屆田徑比賽成績參考</title>
+    <title>歷屆田徑比賽成績系統</title>
     <style>
-        body { font-family: "Microsoft JhengHei", Arial, sans-serif; line-height: 1.6; background: #f4f7f6; margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #2c3e50; margin-bottom: 25px; }
-        
-        /* 分頁按鈕樣式 */
-        .tabs { display: flex; flex-wrap: wrap; border-bottom: 2px solid #ddd; margin-bottom: 20px; }
-        .tab-btn { padding: 12px 15px; cursor: pointer; border: none; background: #eee; outline: none; transition: 0.3s; font-size: 16px; flex: 1; min-width: 150px; border-radius: 5px 5px 0 0; margin-right: 2px; }
-        .tab-btn:hover { background: #ddd; }
-        .tab-btn.active { background: #3498db; color: white; font-weight: bold; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; animation: fadeIn 0.5s; }
-        
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* 極簡單色設計 (Monochrome Theme) */
+        :root {
+            --bg-color: #f9f9f9;
+            --container-bg: #ffffff;
+            --text-main: #333333;
+            --text-muted: #666666;
+            --border-color: #cccccc;
+            --hover-bg: #eeeeee;
+            --accent-color: #000000;
+        }
 
-        /* 組別與表格樣式 */
-        .group-title { font-size: 24px; color: #2c3e50; margin-top: 35px; margin-bottom: 15px; border-bottom: 2px solid #3498db; padding-bottom: 5px; font-weight: bold; }
-        .event-section { margin-bottom: 30px; border-left: 5px solid #3498db; padding-left: 15px; background: #fafafa; padding: 10px 15px; border-radius: 0 5px 5px 0; }
-        .event-title { font-size: 18px; color: #2980b9; margin-bottom: 10px; font-weight: bold; }
-        .record { font-size: 0.9em; color: #e67e22; font-weight: bold; }
+        body { 
+            font-family: "Helvetica Neue", Arial, "Microsoft JhengHei", sans-serif; 
+            line-height: 1.6; 
+            background: var(--bg-color); 
+            color: var(--text-main);
+            margin: 0; 
+            padding: 20px; 
+        }
+
+        .container { 
+            max-width: 900px; 
+            margin: auto; 
+            background: var(--container-bg); 
+            padding: 30px; 
+            border-radius: 8px; 
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+        }
+
+        h1 { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            font-weight: 600;
+            letter-spacing: 1px;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 10px;
+            display: inline-block;
+            width: 100%;
+        }
         
-        table { width: 100%; border-collapse: collapse; background: white; font-size: 15px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background-color: #f8f9fa; color: #333; }
-        tr:nth-child(even) { background-color: #fcfcfc; }
-        tr:hover { background-color: #f1f1f1; }
-        .new-record { color: #d35400; font-weight: bold; }
+        /* 控制面板 (下拉選單與按鈕) */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        .control-group {
+            flex: 1;
+            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        select, button { 
+            padding: 10px; 
+            font-size: 15px; 
+            border: 1px solid var(--border-color); 
+            border-radius: 4px;
+            background: var(--container-bg);
+            color: var(--text-main);
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        select:focus, button:hover {
+            border-color: var(--accent-color);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-top: 10px;
+            border-top: 1px dashed var(--border-color);
+            padding-top: 15px;
+        }
+
+        button.primary { background: var(--accent-color); color: white; border: none; }
+        button.primary:hover { background: #333; }
+        
+        /* 隱藏預設檔案上傳按鈕，用自訂按鈕取代 */
+        input[type="file"] { display: none; }
+        .file-upload-label {
+            padding: 10px 15px;
+            background: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 15px;
+            transition: all 0.2s ease;
+        }
+        .file-upload-label:hover { background: var(--hover-bg); }
+
+        /* 表格區塊 */
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--accent-color);
+            padding-left: 15px;
+        }
+
+        .event-title { font-size: 22px; font-weight: bold; }
+        .event-record { font-size: 14px; color: var(--text-muted); }
+
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 15px; 
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        th, td { 
+            border: 1px solid var(--border-color); 
+            padding: 12px; 
+            text-align: left; 
+        }
+        th { 
+            background-color: var(--accent-color); 
+            color: white; 
+            font-weight: normal;
+        }
+        tr:nth-child(even) { background-color: var(--bg-color); }
+        tr:hover { background-color: var(--hover-bg); }
+        
+        .new-record { font-weight: bold; text-decoration: underline; }
         .rank-col { width: 60px; text-align: center; font-weight: bold; }
+        .empty-state { text-align: center; padding: 40px; color: var(--text-muted); font-style: italic; border: 1px dashed var(--border-color); }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>歷屆田徑成績參考紀錄</h1>
-    <div class="tabs" id="tabs-container"></div>
-    <div id="content-container"></div>
+    <h1>歷屆田徑比賽成績查詢系統</h1>
+    
+    <div class="controls">
+        <div class="control-group">
+            <label for="comp-select">選擇比賽</label>
+            <select id="comp-select" onchange="updateGroups()"></select>
+        </div>
+        <div class="control-group">
+            <label for="group-select">選擇組別</label>
+            <select id="group-select" onchange="updateEvents()"></select>
+        </div>
+        <div class="control-group">
+            <label for="event-select">選擇項目</label>
+            <select id="event-select" onchange="renderTable()"></select>
+        </div>
+        
+        <div class="action-buttons">
+            <button class="primary" onclick="exportData()">匯出成績 (JSON)</button>
+            <label class="file-upload-label" for="import-file">匯入成績 (JSON)</label>
+            <input type="file" id="import-file" accept=".json" onchange="importData(event)">
+        </div>
+    </div>
+
+    <div id="table-container">
+        <div class="empty-state">請由上方選單選擇比賽、組別與項目以顯示成績。</div>
+    </div>
 </div>
 
 <script type="text/data" id="raw-data">
@@ -1109,108 +1251,188 @@
 </script>
 
 <script>
-    // 智能解析邏輯：將上方原始文字自動轉換成 HTML 表格
-    const rawData = document.getElementById('raw-data').textContent;
-    let tabs = [];
-    let currentTab = -1;
-    let currentGroup = -1;
-    let currentEvent = -1;
+    // 全局資料庫
+    let appData = [];
 
-    const lines = rawData.split('\n').map(l => l.trim()).filter(l => l !== '');
-    
-    lines.forEach(line => {
-        if (line.includes("2025-2026 年度沙田區小學校際") || line.includes("保良局屬下小學第二十屆") || line.includes("保良局屬下沙田區小學")) {
-            let shortName = line;
-            if(line.includes("沙田區小學校際")) shortName = "沙田區小學校際";
-            else if(line.includes("第二十屆聯合運動會")) shortName = "保良局小學聯運會";
-            else if(line.includes("沙田區小學聯合運動會")) shortName = "保良局沙田區聯運會";
-            
-            tabs.push({ title: line, shortTitle: shortName, groups: [] });
-            currentTab++;
-            currentGroup = -1;
-        } else if (line.includes("組")) {
-            tabs[currentTab].groups.push({ title: line, events: [] });
-            currentGroup++;
-            currentEvent = -1;
-        } else if (/^\d+米|跳高|跳遠|擲壘球|推鉛球|壘球|鉛球|4 x 100/.test(line)) {
-            tabs[currentTab].groups[currentGroup].events.push({ title: line, results: [] });
-            currentEvent++;
-        } else if (/^\d+\./.test(line)) {
-            let rank, name, score;
-            let dashIndex = line.lastIndexOf(' - ');
-            if (dashIndex !== -1) {
-                let dotIndex = line.indexOf('.');
-                rank = line.substring(0, dotIndex).trim();
-                name = line.substring(dotIndex + 1, dashIndex).trim();
-                score = line.substring(dashIndex + 3).trim();
-            } else {
-                let dotIndex = line.indexOf('.');
-                rank = line.substring(0, dotIndex).trim();
-                name = line.substring(dotIndex + 1).trim();
-                score = "-";
-            }
-            tabs[currentTab].groups[currentGroup].events[currentEvent].results.push({rank, name, score});
-        }
-    });
+    // 初始化：解析原始數據
+    function parseRawData(rawData) {
+        let parsedTabs = [];
+        let currentTab = -1;
+        let currentGroup = -1;
+        let currentEvent = -1;
 
-    // 渲染 HTML
-    let tabsHtml = '';
-    let contentHtml = '';
-
-    tabs.forEach((tab, tIdx) => {
-        let activeClass = tIdx === 0 ? 'active' : '';
-        tabsHtml += `<button class="tab-btn ${activeClass}" onclick="openTab(event, 'tab${tIdx}')">${tab.shortTitle}</button>`;
-
-        contentHtml += `<div id="tab${tIdx}" class="tab-content ${activeClass}">
-            <h2 style="color:#2c3e50; text-align:center;">${tab.title}</h2>`;
-
-        tab.groups.forEach(group => {
-            contentHtml += `<div class="group-title">${group.title}</div>`;
-
-            group.events.forEach(ev => {
-                let eventTitle = ev.title;
-                let recordHtml = '';
-                if(eventTitle.includes('(')) {
-                    let parts = eventTitle.split('(');
-                    eventTitle = parts[0].trim();
-                    recordHtml = `<span class="record">(${parts[1]}</span>`;
+        const lines = rawData.split('\n').map(l => l.trim()).filter(l => l !== '');
+        
+        lines.forEach(line => {
+            if (line.includes("2025-2026 年度沙田區小學校際") || line.includes("保良局屬下小學第二十屆") || line.includes("保良局屬下沙田區小學")) {
+                let shortName = line;
+                if(line.includes("沙田區小學校際")) shortName = "沙田區小學校際";
+                else if(line.includes("第二十屆聯合運動會")) shortName = "保良局小學聯運會";
+                else if(line.includes("沙田區小學聯合運動會")) shortName = "保良局沙田區聯運會";
+                
+                parsedTabs.push({ title: line, shortTitle: shortName, groups: [] });
+                currentTab++;
+                currentGroup = -1;
+            } else if (line.includes("組")) {
+                parsedTabs[currentTab].groups.push({ title: line, events: [] });
+                currentGroup++;
+                currentEvent = -1;
+            } else if (/^\d+米|跳高|跳遠|擲壘球|推鉛球|壘球|鉛球|4 x 100/.test(line)) {
+                let parts = line.split('(');
+                let eventTitle = parts[0].trim();
+                let record = parts[1] ? `(${parts[1]}` : '';
+                parsedTabs[currentTab].groups[currentGroup].events.push({ title: eventTitle, record: record, results: [] });
+                currentEvent++;
+            } else if (/^\d+\./.test(line)) {
+                let rank, name, score;
+                let dashIndex = line.lastIndexOf(' - ');
+                if (dashIndex !== -1) {
+                    let dotIndex = line.indexOf('.');
+                    rank = line.substring(0, dotIndex).trim();
+                    name = line.substring(dotIndex + 1, dashIndex).trim();
+                    score = line.substring(dashIndex + 3).trim();
+                } else {
+                    let dotIndex = line.indexOf('.');
+                    rank = line.substring(0, dotIndex).trim();
+                    name = line.substring(dotIndex + 1).trim();
+                    score = "-";
                 }
-
-                contentHtml += `
-                <div class="event-section">
-                    <div class="event-title">${eventTitle} ${recordHtml}</div>
-                    <table>
-                        <tr><th class="rank-col">名次</th><th>姓名 (學校)</th><th>成績</th></tr>`;
-
-                ev.results.forEach(res => {
-                    let scoreClass = res.score.includes('*') ? 'class="new-record"' : '';
-                    contentHtml += `<tr><td class="rank-col">${res.rank}</td><td>${res.name}</td><td ${scoreClass}>${res.score}</td></tr>`;
-                });
-
-                contentHtml += `</table></div>`;
-            });
+                parsedTabs[currentTab].groups[currentGroup].events[currentEvent].results.push({rank, name, score});
+            }
         });
-        contentHtml += `</div>`;
-    });
+        return parsedTabs;
+    }
 
-    document.getElementById('tabs-container').innerHTML = tabsHtml;
-    document.getElementById('content-container').innerHTML = contentHtml;
+    // 啟動程序
+    window.onload = function() {
+        const rawText = document.getElementById('raw-data').textContent;
+        appData = parseRawData(rawText);
+        renderCompDropdown();
+    };
 
-    // 分頁切換功能
-    window.openTab = function(evt, tabName) {
-        let tabcontent = document.getElementsByClassName("tab-content");
-        for (let i = 0; i < tabcontent.length; i++) {
-            tabcontent[i].style.display = "none";
-            tabcontent[i].classList.remove("active");
+    // 渲染「選擇比賽」選單
+    function renderCompDropdown() {
+        const compSelect = document.getElementById('comp-select');
+        compSelect.innerHTML = '<option value="" disabled selected>-- 請選擇比賽 --</option>';
+        appData.forEach((comp, idx) => {
+            compSelect.innerHTML += `<option value="${idx}">${comp.shortTitle}</option>`;
+        });
+        
+        // 重設下方選單
+        document.getElementById('group-select').innerHTML = '<option value="" disabled selected>-- 等待選擇比賽 --</option>';
+        document.getElementById('event-select').innerHTML = '<option value="" disabled selected>-- 等待選擇組別 --</option>';
+        document.getElementById('table-container').innerHTML = '<div class="empty-state">請由上方選單選擇比賽、組別與項目以顯示成績。</div>';
+    }
+
+    // 更新「選擇組別」選單
+    function updateGroups() {
+        const compIdx = document.getElementById('comp-select').value;
+        const groupSelect = document.getElementById('group-select');
+        
+        groupSelect.innerHTML = '<option value="" disabled selected>-- 請選擇組別 --</option>';
+        if (compIdx !== "") {
+            appData[compIdx].groups.forEach((group, idx) => {
+                groupSelect.innerHTML += `<option value="${idx}">${group.title}</option>`;
+            });
         }
-        let tablinks = document.getElementsByClassName("tab-btn");
-        for (let i = 0; i < tablinks.length; i++) {
-            tablinks[i].classList.remove("active");
+        document.getElementById('event-select').innerHTML = '<option value="" disabled selected>-- 等待選擇組別 --</option>';
+        document.getElementById('table-container').innerHTML = '<div class="empty-state">請繼續選擇組別與項目。</div>';
+    }
+
+    // 更新「選擇項目」選單
+    function updateEvents() {
+        const compIdx = document.getElementById('comp-select').value;
+        const groupIdx = document.getElementById('group-select').value;
+        const eventSelect = document.getElementById('event-select');
+        
+        eventSelect.innerHTML = '<option value="" disabled selected>-- 請選擇項目 --</option>';
+        if (compIdx !== "" && groupIdx !== "") {
+            appData[compIdx].groups[groupIdx].events.forEach((ev, idx) => {
+                eventSelect.innerHTML += `<option value="${idx}">${ev.title}</option>`;
+            });
         }
-        document.getElementById(tabName).style.display = "block";
-        // setTimeout for animation re-trigger
-        setTimeout(() => document.getElementById(tabName).classList.add("active"), 10);
-        evt.currentTarget.classList.add("active");
+        document.getElementById('table-container').innerHTML = '<div class="empty-state">請最後選擇比賽項目。</div>';
+    }
+
+    // 顯示對應的成績表格
+    function renderTable() {
+        const compIdx = document.getElementById('comp-select').value;
+        const groupIdx = document.getElementById('group-select').value;
+        const eventIdx = document.getElementById('event-select').value;
+        
+        if (compIdx === "" || groupIdx === "" || eventIdx === "") return;
+
+        const ev = appData[compIdx].groups[groupIdx].events[eventIdx];
+        
+        let html = `
+            <div class="event-header">
+                <div class="event-title">${ev.title}</div>
+                <div class="event-record">${ev.record}</div>
+            </div>
+            <table>
+                <tr>
+                    <th class="rank-col">名次</th>
+                    <th>姓名 (學校)</th>
+                    <th>成績</th>
+                </tr>
+        `;
+
+        ev.results.forEach(res => {
+            let scoreClass = res.score.includes('*') ? 'class="new-record"' : '';
+            html += `<tr>
+                <td class="rank-col">${res.rank}</td>
+                <td>${res.name}</td>
+                <td ${scoreClass}>${res.score}</td>
+            </tr>`;
+        });
+
+        html += `</table>`;
+        document.getElementById('table-container').innerHTML = html;
+    }
+
+    // 匯出 JSON 功能
+    function exportData() {
+        if (appData.length === 0) {
+            alert("目前沒有數據可供匯出！");
+            return;
+        }
+        const dataStr = JSON.stringify(appData, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "歷屆田徑成績備份.json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // 匯入 JSON 功能
+    function importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if (Array.isArray(importedData)) {
+                    appData = importedData;
+                    renderCompDropdown();
+                    alert("✅ 成功匯入成績數據！");
+                } else {
+                    alert("❌ 檔案格式不正確。請確保匯入的是本系統匯出的 JSON 檔案。");
+                }
+            } catch (error) {
+                alert("❌ 解析檔案失敗，請確定這是一個有效的 JSON 檔案。");
+            }
+        };
+        reader.readAsText(file);
+        
+        // 清空 input，允許重複匯入同一個檔案
+        event.target.value = '';
     }
 </script>
 
